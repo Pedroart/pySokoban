@@ -1,11 +1,24 @@
 # pySokoban
 Sokoban is a japanese transport puzzle game originally developped by Hiroyuki Imabayashi in 1982. The name comes from Japan and means "warehouse keeper". The player pushes boxes or crates around in a warehouse, trying to get them to storage locations. This implementation is based on Python & pyGame Library.
 
-## System Requirements
-- Python 3.x
-- pyGame 2.x
+# Sokoban - API y Juego con Flask y Pygame
 
-This project is based on kazantzakis/pySokoban. The original code has been updated to support Python 3 and the latest version of pyGame.
+Este proyecto implementa el clásico juego **Sokoban** usando **Pygame** para la interfaz gráfica y **Flask** para proporcionar una API que permite interactuar con el juego de forma remota.
+
+## 📌 Características
+✅ Control del juego a través de una API REST usando Flask.  
+✅ Interfaz gráfica utilizando Pygame.  
+✅ Control remoto del personaje mediante solicitudes HTTP.  
+✅ Manejo de niveles y detección de colisiones.  
+
+---
+
+## 🛠️ Requisitos
+Antes de ejecutar el programa, asegúrate de tener instaladas las dependencias necesarias:
+
+```bash
+pip install pygame flask
+```
 
 ## How to play
 Use arrows keys to move player  
