@@ -1,20 +1,73 @@
 import os
 import copy
 import multiprocessing
-#import pygame
+import threading
+import pygame
 from fastapi import FastAPI
 #from Environment import Environment
 from Level import Level
 #from sokaband import movePlayer, initLevel, drawLevel
 import sys
 import uvicorn
+from Environment import Environment
 from flask import Flask, jsonify, request
+
 
 theme = "default"
 level_set = "original"
 current_level = 1
 myLevel = Level(level_set, current_level)
 target_found = False
+screen = None  
+
+import pygame
+
+# Definir valores que antes se obtenían de myEnvironment
+SCREEN_WIDTH = 800
+SCREEN_HEIGHT = 600
+THEME_PATH = "themes/default/images"  # Ajusta la ruta de los recursos según sea necesario
+
+def drawLevel(matrix_to_draw, screen):
+    # Cargar imágenes
+    wall = pygame.image.load(f"{THEME_PATH}/wall.png").convert()
+    box = pygame.image.load(f"{THEME_PATH}/box.png").convert()
+    box_on_target = pygame.image.load(f"{THEME_PATH}/box_on_target.png").convert()
+    space = pygame.image.load(f"{THEME_PATH}/space.png").convert()
+    target = pygame.image.load(f"{THEME_PATH}/target.png").convert()
+    player = pygame.image.load(f"{THEME_PATH}/player.png").convert()
+
+    # Obtener tamaño del nivel
+    level_width = len(matrix_to_draw[0])  # Número de columnas
+    level_height = len(matrix_to_draw)    # Número de filas
+
+    # Determinar si es necesario redimensionar las imágenes
+    if level_width > SCREEN_WIDTH / 36 or level_height > SCREEN_HEIGHT / 36:
+        if level_width / level_height >= 1:
+            new_image_size = SCREEN_WIDTH / level_width
+        else:
+            new_image_size = SCREEN_HEIGHT / level_height
+
+        # Redimensionar imágenes
+        wall = pygame.transform.scale(wall, (int(new_image_size), int(new_image_size)))
+        box = pygame.transform.scale(box, (int(new_image_size), int(new_image_size)))
+        box_on_target = pygame.transform.scale(box_on_target, (int(new_image_size), int(new_image_size)))
+        space = pygame.transform.scale(space, (int(new_image_size), int(new_image_size)))
+        target = pygame.transform.scale(target, (int(new_image_size), int(new_image_size)))
+        player = pygame.transform.scale(player, (int(new_image_size), int(new_image_size)))
+
+    # Diccionario de imágenes
+    images = {'#': wall, ' ': space, '$': box, '.': target, '@': player, '*': box_on_target}
+
+    # Obtener el tamaño de una celda
+    box_size = wall.get_width()
+
+    # Dibujar el nivel
+    for i in range(len(matrix_to_draw)):
+        for c in range(len(matrix_to_draw[i])):
+            screen.blit(images[matrix_to_draw[i][c]], (c * box_size, i * box_size))
+
+    pygame.display.update()
+
 
 def initLevel(level_set,level):
 	# Create an instance of this Level
@@ -27,7 +80,7 @@ def initLevel(level_set,level):
 	global target_found
 	target_found = False
 
-def movePlayer(direction,myLevel):
+def movePlayer(direction,myLevel,screen):
 	
 	matrix = myLevel.getMatrix()
 	
@@ -317,7 +370,7 @@ def movePlayer(direction,myLevel):
 		else:
 			print ("There is a wall here")
 	
-	#drawLevel(matrix)
+	drawLevel(matrix,pygame.display.get_surface())
 	
 	print ("Boxes remaining: " + str(len(myLevel.getBoxes())))
 	
@@ -357,7 +410,7 @@ def move_player():
 
     """Move the player in the given direction (L, R, U, D)."""
     if direction.upper() in ["L", "R", "U", "D"]:
-        movePlayer(direction.upper(), myLevel)
+        movePlayer(direction.upper(), myLevel,screen)
         return jsonify({"message": f"Moved {direction}", "state": update_game_state()})
     
     return jsonify({"error": "Invalid direction. Use L, R, U, or D."}), 400
@@ -369,6 +422,51 @@ def reset_game():
     myLevel = Level(level_set, current_level)
     return jsonify({"message": "Game reset", "state": update_game_state()})
 
+def run_pygame():
+    
+
+    running = True
+    pygame.quit()  # Asegura que no haya una instancia anterior
+    pygame.init()
+    
+    screen = pygame.display.set_mode((800, 600))
+    pygame.display.set_caption("Sokoban Game")
+    clock = pygame.time.Clock()
+
+    while running:
+        #screen.fill((0, 0, 0))  # Clear screen
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_LEFT:
+                    movePlayer("L",myLevel,screen)
+                elif event.key == pygame.K_RIGHT:
+                    movePlayer("R",myLevel,screen)
+                elif event.key == pygame.K_DOWN:
+                    movePlayer("D",myLevel,screen)
+                elif event.key == pygame.K_UP:
+                    movePlayer("U",myLevel,screen)
+                elif event.key == pygame.K_u:
+                    drawLevel(myLevel.getLastMatrix(),screen)
+                    pass
+                elif event.key == pygame.K_r:
+                    initLevel(level_set,current_level)
+                elif event.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    sys.exit()
+            elif event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        pygame.display.flip()
+        clock.tick(30)  # Limit FPS to 30
+    pygame.quit()
 
 if __name__ == "__main__":
+	
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    
+	    # Run Pygame in a separate thread
+        pygame_thread = threading.Thread(target=run_pygame, daemon=True)
+        pygame_thread.start()
+    
+    
     app.run(host="0.0.0.0", port=5000, debug=True)
